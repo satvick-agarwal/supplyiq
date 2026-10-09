@@ -63,13 +63,18 @@ async def get_dashboard_summary(
 @router.post("/generate")
 async def generate_insights(
     background_tasks: BackgroundTasks,
-    db: AsyncSession = Depends(get_db),
     _=Depends(require_permission(AI_INSIGHT_GENERATE)),
 ):
     async def _run():
-        engine = AiInsightEngine(db)
-        await engine.generate_all()
-        await db.commit()
+        from app.db.session import AsyncSessionLocal
+        import logging
+        async with AsyncSessionLocal() as session:
+            try:
+                engine = AiInsightEngine(session)
+                await engine.generate_all()
+                await session.commit()
+            except Exception as e:
+                logging.getLogger("supplyiq.ai_insights").error(f"Error generating insights: {e}", exc_info=True)
 
     background_tasks.add_task(_run)
     return {"message": "AI insight generation triggered", "status": "running"}

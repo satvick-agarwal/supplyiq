@@ -21,10 +21,16 @@ class Settings(BaseSettings):
 
     @property
     def ASYNC_DATABASE_URL(self) -> str:
+        import re
         url = self.DATABASE_URL
         if url.startswith("postgresql://"):
             url = url.replace("postgresql://", "postgresql+asyncpg://", 1)
         url = url.replace("sslmode=require", "ssl=require")
+        # asyncpg does not support channel_binding
+        url = re.sub(r'[&?]channel_binding=[^&]*', '', url)
+        # If the parameter list started with ?channel_binding and had more params with &, fix first & to ?
+        if "?" not in url and "&" in url:
+            url = url.replace("&", "?", 1)
         return url
 
     @property

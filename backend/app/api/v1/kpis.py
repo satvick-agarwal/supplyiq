@@ -100,16 +100,21 @@ async def get_kpi_history(
 async def recompute_kpis(
     background_tasks: BackgroundTasks,
     snapshot_date: Optional[date] = None,
-    db: AsyncSession = Depends(get_db),
     _=Depends(require_permission(KPI_RECOMPUTE)),
 ):
     """Trigger on-demand KPI recomputation (Admin only)."""
     target_date = snapshot_date or date.today()
 
     async def _run():
-        engine = KpiEngine(db)
-        count = await engine.run_all(target_date)
-        await db.commit()
+        from app.db.session import AsyncSessionLocal
+        import logging
+        async with AsyncSessionLocal() as session:
+            try:
+                engine = KpiEngine(session)
+                count = await engine.run_all(target_date)
+                await session.commit()
+            except Exception as e:
+                logging.getLogger("supplyiq.kpi_engine").error(f"Error recomputing KPIs: {e}", exc_info=True)
 
     background_tasks.add_task(_run)
     return {"message": f"KPI recomputation triggered for {target_date}", "status": "running"}

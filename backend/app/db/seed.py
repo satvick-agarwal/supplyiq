@@ -44,6 +44,12 @@ from app.core.permissions import ADMIN_PERMISSIONS, MANAGER_PERMISSIONS, EMPLOYE
 
 
 async def seed(db: AsyncSession):
+    from sqlalchemy import select, func
+    user_check = await db.execute(select(func.count()).select_from(User))
+    if user_check.scalar_one() > 0:
+        print("[!] Database is already seeded (existing users found). Skipping seed.")
+        return
+
     print("[+] Starting seed...")
 
     # ── 1. Permissions ─────────────────────────────────────────────────────────
